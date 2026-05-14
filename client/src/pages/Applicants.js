@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import { FiPlus, FiSearch } from 'react-icons/fi';
 import DetailModal from '../components/DetailModal';
 import FormModal from '../components/FormModal';
+import Pagination from '../components/Pagination';
 
 const formFields = [
   { key: 'firstName', label: 'First Name', required: true },
@@ -47,25 +48,33 @@ const detailFields = [
 
 export default function Applicants() {
   const [items, setItems] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
 
-  const load = useCallback(() => { api.get('/applicants').then((r) => setItems(r.data)).catch(() => toast.error('Failed to load')); }, []);
+  const load = useCallback((page = 1) => {
+    api.get(`/applicants?page=${page}&limit=20${search ? `&search=${encodeURIComponent(search)}` : ''}`)
+      .then((r) => {
+        if (Array.isArray(r.data)) { setItems(r.data); }
+        else { setItems(r.data.data || []); setPagination(r.data.pagination || { page: 1, totalPages: 1 }); }
+      })
+      .catch(() => toast.error('Failed to load'));
+  }, [search]);
   useEffect(() => { load(); }, [load]);
 
   const handleSave = async (data) => {
     try {
       if (editing) { await api.put(`/applicants/${editing.id}`, data); toast.success('Updated!'); }
       else { await api.post('/applicants', data); toast.success('Created!'); }
-      setShowForm(false); setEditing(null); load();
+      setShowForm(false); setEditing(null); load(pagination.page);
     } catch (e) { toast.error(e.response?.data?.error || 'Error'); }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this applicant?')) return;
-    try { await api.delete(`/applicants/${id}`); toast.success('Deleted!'); setSelected(null); load(); }
+    try { await api.delete(`/applicants/${id}`); toast.success('Deleted!'); setSelected(null); load(pagination.page); }
     catch (e) { toast.error('Error deleting'); }
   };
 
@@ -99,6 +108,7 @@ export default function Applicants() {
         </table>
         {filtered.length === 0 && <div className="empty-state">No applicants found</div>}
       </div>
+      <Pagination page={pagination.page} totalPages={pagination.totalPages} onPageChange={(p) => load(p)} />
       {selected && <DetailModal title="Applicant Details" data={selected} fields={detailFields} onClose={() => setSelected(null)} onEdit={(d) => { setEditing(d); setShowForm(true); setSelected(null); }} onDelete={handleDelete} />}
       {showForm && <FormModal title="Applicant" fields={formFields} data={editing} onSave={handleSave} onClose={() => { setShowForm(false); setEditing(null); }} />}
     </div>

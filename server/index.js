@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 
 const { sequelize } = require('./models');
@@ -7,9 +8,38 @@ const { sequelize } = require('./models');
 const app = express();
 const PORT = process.env.SERVER_PORT || 4000;
 
-// Middleware
-app.use(cors());
+// Security middleware
+app.use(helmet());
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  credentials: true
+}));
 app.use(express.json({ limit: '10mb' }));
+
+// Audit log middleware — auto-log POST/PUT/DELETE
+app.use(async (req, res, next) => {
+  if (['POST', 'PUT', 'DELETE'].includes(req.method) && req.path !== '/api/auth/login') {
+    const originalJson = res.json.bind(res);
+    res.json = (data) => {
+      try {
+        const { AuditLog } = require('./models');
+        const entityMatch = req.path.match(/^\/api\/([^/]+)/);
+        const entity = entityMatch ? entityMatch[1] : 'unknown';
+        const idMatch = req.path.match(/\/(\d+)/);
+        AuditLog.create({
+          userId: req.user?.id || null,
+          action: req.method,
+          entity,
+          entityId: idMatch ? parseInt(idMatch[1]) : null,
+          details: JSON.stringify({ body: req.body, path: req.path }),
+          ipAddress: req.ip,
+        }).catch(() => {});
+      } catch (_) {}
+      return originalJson(data);
+    };
+  }
+  next();
+});
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -53,7 +83,18 @@ async function startServer() {
   try {
     await sequelize.authenticate();
     console.log('Database connected successfully.');
-    await sequelize.sync({ alter: true });
+    // Create ai_results table
+    await sequelize.query(`
+      CREATE TABLE IF NOT EXISTS ai_results (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER,
+        endpoint VARCHAR(100),
+        input_data JSONB,
+        result JSONB,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+    await sequelize.sync({ force: false });
     console.log('Database synced.');
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
@@ -65,3 +106,19 @@ async function startServer() {
 }
 
 startServer();
+
+// AI feature mount: benefits-discovery
+app.use('/api/ai/benefits-discovery', require('./routes/ai-benefits-discovery'));
+// === Batch 07 Gaps & Frontend Mounts ===
+app.use('/api/gap-no-benefitsnavigator-multiprogram-eligibilit', require('./routes/gap-no-benefitsnavigator-multiprogram-eligibilit'));
+app.use('/api/gap-no-incomeverificationguide-doc-checklist-ai', require('./routes/gap-no-incomeverificationguide-doc-checklist-ai'));
+app.use('/api/gap-no-appealpreparation-denialtoappeal-strategy', require('./routes/gap-no-appealpreparation-denialtoappeal-strategy'));
+app.use('/api/gap-no-servicelocator-local-resources', require('./routes/gap-no-servicelocator-local-resources'));
+app.use('/api/gap-no-multilingual-translation-ai', require('./routes/gap-no-multilingual-translation-ai'));
+app.use('/api/gap-no-case-worker-assignmentcommunication-workf', require('./routes/gap-no-case-worker-assignmentcommunication-workf'));
+app.use('/api/gap-no-benefits-expiration-renewal-reminder-auto', require('./routes/gap-no-benefits-expiration-renewal-reminder-auto'));
+app.use('/api/gap-no-appeal-lifecycle-tracking', require('./routes/gap-no-appeal-lifecycle-tracking'));
+app.use('/api/gap-no-smsvoice-gateway-integration-project-name', require('./routes/gap-no-smsvoice-gateway-integration-project-name'));
+app.use('/api/gap-no-sso-with-state-benefit-systems', require('./routes/gap-no-sso-with-state-benefit-systems'));
+app.use('/api/gap-no-public-partner-api', require('./routes/gap-no-public-partner-api'));
+// === End Batch 07 ===

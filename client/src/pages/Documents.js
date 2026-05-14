@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 import { toast } from 'react-toastify';
-import { FiPlus, FiSearch, FiCpu } from 'react-icons/fi';
+import { FiPlus, FiSearch, FiCpu, FiDownload } from 'react-icons/fi';
 import DetailModal from '../components/DetailModal';
 import FormModal from '../components/FormModal';
 import AIResponseDisplay from '../components/AIResponseDisplay';
+import Pagination from '../components/Pagination';
+import FileUpload from '../components/FileUpload';
 
 const docTypes = [
   { value: 'id_proof', label: 'ID Proof' }, { value: 'income_proof', label: 'Income Proof' },
@@ -41,27 +43,57 @@ const detailFields = [
 
 export default function Documents() {
   const [items, setItems] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [aiResult, setAiResult] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [pendingFile, setPendingFile] = useState(null);
 
-  const load = useCallback(() => { api.get('/documents').then((r) => setItems(r.data)).catch(() => toast.error('Failed to load')); }, []);
+  const load = useCallback((page = 1) => {
+    api.get(`/documents?page=${page}&limit=20`)
+      .then((r) => {
+        if (Array.isArray(r.data)) { setItems(r.data); }
+        else { setItems(r.data.data || []); setPagination(r.data.pagination || { page: 1, totalPages: 1 }); }
+      })
+      .catch(() => toast.error('Failed to load'));
+  }, []);
   useEffect(() => { load(); }, [load]);
 
   const handleSave = async (data) => {
     try {
-      if (editing) { await api.put(`/documents/${editing.id}`, data); toast.success('Updated!'); }
-      else { await api.post('/documents', data); toast.success('Created!'); }
-      setShowForm(false); setEditing(null); load();
+      if (pendingFile) {
+        const formData = new FormData();
+        Object.entries(data).forEach(([k, v]) => { if (v !== undefined && v !== null) formData.append(k, v); });
+        formData.append('file', pendingFile);
+        if (editing) { await api.put(`/documents/${editing.id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }); toast.success('Updated!'); }
+        else { await api.post('/documents', formData, { headers: { 'Content-Type': 'multipart/form-data' } }); toast.success('Created!'); }
+      } else {
+        if (editing) { await api.put(`/documents/${editing.id}`, data); toast.success('Updated!'); }
+        else { await api.post('/documents', data); toast.success('Created!'); }
+      }
+      setShowForm(false); setEditing(null); setPendingFile(null); load(pagination.page);
     } catch (e) { toast.error(e.response?.data?.error || 'Error'); }
+  };
+
+  const handleDownload = async (item) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:4000/api'}/documents/${item.id}/download`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = item.fileName || 'document'; a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (e) { toast.error('Download failed'); }
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this document?')) return;
-    try { await api.delete(`/documents/${id}`); toast.success('Deleted!'); setSelected(null); load(); }
+    try { await api.delete(`/documents/${id}`); toast.success('Deleted!'); setSelected(null); load(pagination.page); }
     catch (e) { toast.error('Error deleting'); }
   };
 
@@ -86,13 +118,18 @@ export default function Documents() {
         <div className="page-actions">
           <div className="search-box"><FiSearch /><input placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} /></div>
           <button className="btn btn-secondary" onClick={getAIReview}><FiCpu /> AI Review</button>
-          <button className="btn btn-primary" onClick={() => { setEditing(null); setShowForm(true); }}><FiPlus /> New Document</button>
+          <button className="btn btn-primary" onClick={() => { setEditing(null); setPendingFile(null); setShowForm(true); }}><FiPlus /> New Document</button>
         </div>
       </div>
       {(aiResult || aiLoading) && <AIResponseDisplay content={aiResult?.review} model={aiResult?.model} usage={aiResult?.usage} loading={aiLoading} title="Document Review Guide" />}
+      {showForm && (
+        <div style={{ marginBottom: '1rem', padding: '1rem', background: 'var(--bg-secondary,#f9f9f9)', borderRadius: '8px', border: '1px solid var(--border,#ddd)' }}>
+          <FileUpload label="Attach Document File (optional)" onFileSelect={setPendingFile} />
+        </div>
+      )}
       <div className="table-container">
         <table>
-          <thead><tr><th>Applicant</th><th>Type</th><th>File</th><th>Status</th><th>Uploaded</th><th>Expires</th></tr></thead>
+          <thead><tr><th>Applicant</th><th>Type</th><th>File</th><th>Status</th><th>Uploaded</th><th>Expires</th><th>File</th></tr></thead>
           <tbody>
             {filtered.map((item) => (
               <tr key={item.id} onClick={() => setSelected(item)} className="clickable-row">
@@ -102,14 +139,22 @@ export default function Documents() {
                 <td><span className={`badge badge-${item.status}`}>{item.status}</span></td>
                 <td>{item.uploadDate}</td>
                 <td>{item.expiryDate || '-'}</td>
+                <td>
+                  {item.filePath && (
+                    <button className="btn btn-sm btn-secondary" onClick={(e) => { e.stopPropagation(); handleDownload(item); }}>
+                      <FiDownload />
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
         {filtered.length === 0 && <div className="empty-state">No documents found</div>}
       </div>
-      {selected && <DetailModal title="Document Details" data={selected} fields={detailFields} onClose={() => setSelected(null)} onEdit={(d) => { setEditing(d); setShowForm(true); setSelected(null); }} onDelete={handleDelete} />}
-      {showForm && <FormModal title="Document" fields={formFields} data={editing} onSave={handleSave} onClose={() => { setShowForm(false); setEditing(null); }} />}
+      <Pagination page={pagination.page} totalPages={pagination.totalPages} onPageChange={(p) => load(p)} />
+      {selected && <DetailModal title="Document Details" data={selected} fields={detailFields} onClose={() => setSelected(null)} onEdit={(d) => { setEditing(d); setPendingFile(null); setShowForm(true); setSelected(null); }} onDelete={handleDelete} />}
+      {showForm && <FormModal title="Document" fields={formFields} data={editing} onSave={handleSave} onClose={() => { setShowForm(false); setEditing(null); setPendingFile(null); }} />}
     </div>
   );
 }

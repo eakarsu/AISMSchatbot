@@ -8,7 +8,7 @@ const User = sequelize.define('User', {
   password: { type: DataTypes.STRING, allowNull: false },
   firstName: { type: DataTypes.STRING, allowNull: false },
   lastName: { type: DataTypes.STRING, allowNull: false },
-  role: { type: DataTypes.ENUM('admin', 'caseworker', 'reviewer'), defaultValue: 'caseworker' }
+  role: { type: DataTypes.ENUM('admin', 'supervisor', 'caseworker', 'reviewer'), defaultValue: 'caseworker' }
 }, { tableName: 'users', timestamps: true });
 
 // Applicant model
@@ -66,6 +66,7 @@ const Document = sequelize.define('Document', {
   applicationId: { type: DataTypes.INTEGER },
   documentType: { type: DataTypes.ENUM('id_proof', 'income_proof', 'address_proof', 'employment_letter', 'tax_return', 'bank_statement', 'birth_certificate', 'social_security', 'medical_record', 'other'), allowNull: false },
   fileName: { type: DataTypes.STRING, allowNull: false },
+  filePath: { type: DataTypes.STRING },
   status: { type: DataTypes.ENUM('pending', 'verified', 'rejected', 'expired'), defaultValue: 'pending' },
   notes: { type: DataTypes.TEXT },
   uploadDate: { type: DataTypes.DATEONLY },

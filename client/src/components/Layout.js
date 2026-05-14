@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiHome, FiUsers, FiFileText, FiBriefcase, FiFolder, FiCalendar, FiDollarSign, FiBell, FiCheckSquare, FiList, FiMessageSquare, FiCreditCard, FiBarChart2, FiLogOut, FiMenu, FiX } from 'react-icons/fi';
+import { FiHome, FiUsers, FiFileText, FiBriefcase, FiFolder, FiCalendar, FiDollarSign, FiBell, FiCheckSquare, FiList, FiMessageSquare, FiCreditCard, FiBarChart2, FiLogOut, FiMenu, FiX, FiCompass, FiAlertCircle, FiMapPin, FiTrendingUp } from 'react-icons/fi';
+
+const ROLE_LEVELS = { caseworker: 1, reviewer: 1, supervisor: 2, admin: 3 };
 
 const menuItems = [
   { path: '/', icon: FiHome, label: 'Dashboard' },
@@ -16,7 +18,13 @@ const menuItems = [
   { path: '/ai-assistant', icon: FiMessageSquare, label: 'AI Assistant' },
   { path: '/benefits-calculator', icon: FiCreditCard, label: 'Benefits Calculator' },
   { path: '/reports', icon: FiBarChart2, label: 'Reports' },
-  { path: '/audit-logs', icon: FiList, label: 'Audit Logs' },
+  { path: '/benefits-navigator', icon: FiCompass, label: 'Benefits Navigator' },
+  { path: '/income-verification-guide', icon: FiFileText, label: 'Income Verification' },
+  { path: '/appeal-preparation', icon: FiAlertCircle, label: 'Appeal Preparation' },
+  { path: '/service-locator', icon: FiMapPin, label: 'Service Locator' },
+  { path: '/income-change-advisor', icon: FiTrendingUp, label: 'Income Change Advisor' },
+  // Supervisor+ only
+  { path: '/audit-logs', icon: FiList, label: 'Audit Logs', minRole: 'supervisor' },
 ];
 
 export default function Layout({ children }) {
@@ -37,7 +45,12 @@ export default function Layout({ children }) {
           </button>
         </div>
         <nav className="sidebar-nav">
-          {menuItems.map((item) => (
+          {menuItems.filter((item) => {
+            if (!item.minRole) return true;
+            const userLevel = ROLE_LEVELS[user?.role] || 0;
+            const requiredLevel = ROLE_LEVELS[item.minRole] || 0;
+            return userLevel >= requiredLevel;
+          }).map((item) => (
             <button
               key={item.path}
               className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
