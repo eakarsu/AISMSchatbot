@@ -15,7 +15,7 @@ router.post('/login', async (req, res) => {
 
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role, firstName: user.firstName, lastName: user.lastName },
-      process.env.JWT_SECRET || 'snap_benefits_secret_key_2024',
+      process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
     res.json({ token, user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role } });
