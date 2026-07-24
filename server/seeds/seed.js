@@ -2,6 +2,12 @@ const bcrypt = require('bcryptjs');
 require('dotenv').config({ path: require('path').join(__dirname, '../../.env') });
 const { sequelize, User, Applicant, Application, Case, Document, Appointment, Benefit, Notification, EligibilityScreening, AuditLog } = require('../models');
 
+function requireDemoPassword() {
+  const password = process.env.DEMO_PASSWORD;
+  if (!password || password.length < 12) throw new Error('DEMO_PASSWORD must be at least 12 characters');
+  return password;
+}
+
 async function seed() {
   try {
     await sequelize.authenticate();
@@ -10,7 +16,7 @@ async function seed() {
     console.log('Tables created.');
 
     // Seed Users
-    const hashedPassword = await bcrypt.hash('password123', 10);
+    const hashedPassword = await bcrypt.hash(requireDemoPassword(), 10);
     const users = await User.bulkCreate([
       { email: 'admin@snapbenefits.gov', password: hashedPassword, firstName: 'Sarah', lastName: 'Johnson', role: 'admin' },
       { email: 'caseworker@snapbenefits.gov', password: hashedPassword, firstName: 'Michael', lastName: 'Chen', role: 'caseworker' },
@@ -201,10 +207,7 @@ async function seed() {
 
     console.log('\n✅ All seed data loaded successfully!');
     console.log('📊 Seeded: 3 users, 16 applicants, 15 applications, 15 cases, 15 documents, 15 appointments, 15 benefits, 15 notifications, 15 eligibility screenings, 15 audit logs');
-    console.log('\n🔑 Login credentials:');
-    console.log('  Admin: admin@snapbenefits.gov / password123');
-    console.log('  Caseworker: caseworker@snapbenefits.gov / password123');
-    console.log('  Reviewer: reviewer@snapbenefits.gov / password123');
+    console.log('\n🔑 Demo login users provisioned.');
 
     process.exit(0);
   } catch (err) {

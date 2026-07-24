@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+const demoPassword = process.env.REACT_APP_ENABLE_DEMO_CREDENTIAL_AUTOFILL === 'true'
+  ? process.env.REACT_APP_DEMO_PASSWORD || ''
+  : '';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
@@ -26,9 +29,9 @@ export default function Login() {
 
   const fillCredentials = (role) => {
     const creds = {
-      admin: { email: 'admin@snapbenefits.gov', password: 'password123' },
-      caseworker: { email: 'caseworker@snapbenefits.gov', password: 'password123' },
-      reviewer: { email: 'reviewer@snapbenefits.gov', password: 'password123' },
+      admin: { email: 'admin@snapbenefits.gov', password: demoPassword },
+      caseworker: { email: 'caseworker@snapbenefits.gov', password: demoPassword },
+      reviewer: { email: 'reviewer@snapbenefits.gov', password: demoPassword },
     };
     setEmail(creds[role].email);
     setPassword(creds[role].password);
@@ -68,9 +71,9 @@ export default function Login() {
             <div className="quick-login">
               <p>Quick Login:</p>
               <div className="quick-login-buttons">
-                <button type="button" className="btn btn-outline" onClick={() => fillCredentials('admin')}>Admin</button>
-                <button type="button" className="btn btn-outline" onClick={() => fillCredentials('caseworker')}>Caseworker</button>
-                <button type="button" className="btn btn-outline" onClick={() => fillCredentials('reviewer')}>Reviewer</button>
+                <button type="button" disabled={!demoPassword} className="btn btn-outline" onClick={() => fillCredentials('admin')}>Admin</button>
+                <button type="button" disabled={!demoPassword} className="btn btn-outline" onClick={() => fillCredentials('caseworker')}>Caseworker</button>
+                <button type="button" disabled={!demoPassword} className="btn btn-outline" onClick={() => fillCredentials('reviewer')}>Reviewer</button>
               </div>
             </div>
           </form>
