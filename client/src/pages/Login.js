@@ -71,7 +71,7 @@ export default function Login() {
             <div className="quick-login">
               <p>Quick Login:</p>
               <div className="quick-login-buttons">
-                <button type="button" disabled={!demoPassword} className="btn btn-outline" onClick={() => fillCredentials('admin')}>Admin</button>
+                <button type="button" disabled={!demoPassword} className="btn btn-outline" onClick={() => fillCredentials('admin')}>Auto Fill Demo Credentials</button>
                 <button type="button" disabled={!demoPassword} className="btn btn-outline" onClick={() => fillCredentials('caseworker')}>Caseworker</button>
                 <button type="button" disabled={!demoPassword} className="btn btn-outline" onClick={() => fillCredentials('reviewer')}>Reviewer</button>
               </div>
