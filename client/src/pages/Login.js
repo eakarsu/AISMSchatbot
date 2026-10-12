@@ -71,7 +71,7 @@ export default function Login() {
             <div className="quick-login">
               <p>Quick Login:</p>
               <div className="quick-login-buttons">
-                <button type="button" disabled={!demoPassword} className="btn btn-outline" onClick={() => fillCredentials('admin')}>Auto Fill Demo Credentials</button>
+                <button type="button" disabled={!demoPassword} className="btn btn-outline" onClick={async (event) => { await (() => fillCredentials('admin'))(event); window.setTimeout(() => { const form = document.querySelector("form"); if (form) form.requestSubmit(); }, 150); }}>Log In as Demo</button>
                 <button type="button" disabled={!demoPassword} className="btn btn-outline" onClick={() => fillCredentials('caseworker')}>Caseworker</button>
                 <button type="button" disabled={!demoPassword} className="btn btn-outline" onClick={() => fillCredentials('reviewer')}>Reviewer</button>
               </div>
