@@ -51,6 +51,7 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use('/api/feature-pack', require('./routes/featurePack').createFeaturePackRouter());
 app.use('/api/applicants', require('./routes/applicants'));
 app.use('/api/applications', require('./routes/applications'));
 app.use('/api/cases', require('./routes/cases'));
